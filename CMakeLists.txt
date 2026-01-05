@@ -20,7 +20,7 @@ target_include_directories(thread_pool PUBLIC
 # sanitizer support
 option(ENABLE_SANITIZERS "Enable ASan and UBSan" OFF)
 if(ENABLE_SANITIZERS)
-    target_compile_options(thread_pool PRIVATE -fsanitize=address,undefined-fno-omit-frame-pointer)
+    target_compile_options(thread_pool PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
     target_link_options(thread_pool PRIVATE -fsanitize=address,undefined)
 endif()
 
