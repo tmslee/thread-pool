@@ -1,6 +1,8 @@
 #ifndef THREAD_POOL_HPP
 #define THREAD_POOL_HPP
 
+#include <cstddef>
+
 namespace tp {
     
 class ThreadPool
