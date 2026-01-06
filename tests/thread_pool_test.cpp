@@ -3,4 +3,5 @@
 
 TEST(ThreadPool, Constructs) {
     tp::ThreadPool pool(4);
+    EXPECT_EQ(pool.thread_count(), 4);
 }
