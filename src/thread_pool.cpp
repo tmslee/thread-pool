@@ -46,7 +46,21 @@ ThreadPool::Impl::~Impl() {
 }
 
 void ThreadPool::Impl::worker_loop() {
-    // phase 4
+    while(true) {
+        std::function<void()> task;
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+            cv_.wait(lock, [this] {
+                return stop_.load(std::memory_order_relaxed) || !tasks_.empty();
+            });
+            if(stop_.load(std::memory_order_relaxed) && tasks_.empty()) {
+                return;
+            }
+            task = std::move(tasks_.front());
+            tasks_.pop();
+        }
+        task();
+    }
 }
 
 void ThreadPool::Impl::enqueue(std::function<void()> task) {
@@ -58,7 +72,7 @@ void ThreadPool::Impl::shutdown() {
 }
 
 std::size_t ThreadPool::Impl::pending_tasks() const noexcept {
-    std::lock_guard lock(mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     return tasks_.size();
 }
 
