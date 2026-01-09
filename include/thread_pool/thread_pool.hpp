@@ -13,6 +13,7 @@ class ThreadPool {
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;
+    void enqueue(std::function<void()> task);
 
 public:
     explicit ThreadPool(std::size_t num_threads);
@@ -25,19 +26,7 @@ public:
     ThreadPool& operator=(ThreadPool&&) = delete;
 
     template<typename F, typename... Args>
-    auto ThreadPool::submit(F&& f, Args&&... args) -> std::future<std::invoke_result_t<F, Args...>> {
-        using ReturnType = std::invoke_result_t<F, Args...>;
-        auto task = std::make_shared<std::packaged_task<ReturnType()>>(
-            [func = std::forward<F>(f), ..capturedArgs = std::forward<args>(args)]() mutable {
-                return func(std::move(capturedArgs)...);
-            }
-        )
-        std::future<ReturnType> future = task->get_future();
-        impl_->enqueue([task = std::move(task)]() {
-            (*task)();
-        });
-        return future;
-    };
+    auto submit(F&& f, Args&&... args) -> std::future<std::invoke_result_t<F, Args...>>;
 
     [[nodiscard]] std::size_t thread_count() const noexcept;
     [[nodiscard]] std::size_t pending_tasks() const noexcept;
@@ -45,6 +34,22 @@ public:
     void shutdown();
 
 };
+
+template<typename F, typename... Args>
+auto ThreadPool::submit(F&& f, Args&&... args) -> std::future<std::invoke_result_t<F, Args...>> 
+{
+    using ReturnType = std::invoke_result_t<F, Args...>;
+    auto task = std::make_shared<std::packaged_task<ReturnType()>>(
+        [func = std::forward<F>(f), ...capturedArgs = std::forward<Args>(args)]() mutable {
+            return func(std::move(capturedArgs)...);
+        }
+    );
+    std::future<ReturnType> future = task->get_future();
+    enqueue([task = std::move(task)]() {
+        (*task)();
+    });
+    return future;
+}
 
 } //namespace tp
 
