@@ -64,7 +64,14 @@ void ThreadPool::Impl::worker_loop() {
 }
 
 void ThreadPool::Impl::enqueue(std::function<void()> task) {
-    //phase 5
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if(stop_load(std::memory_order_relaxed)){
+            throw std::runtime_error("Cannot enqueue on stopped thread pool");
+        }
+        tasks_.push(std::move(task));
+    }
+    cv_.notify_one();
 }
 
 void ThreadPool::Impl::shutdown() {
