@@ -75,7 +75,19 @@ void ThreadPool::Impl::enqueue(std::function<void()> task) {
 }
 
 void ThreadPool::Impl::shutdown() {
-    //phase 6
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if(stop_.load(std::memory_order_relaxed)) {
+            return;
+        }
+        stop_.store(true, std::memory_order_relaxed);
+    }
+    cv.notify_all();
+    for(auto& worker : workers_){
+        if(worker.joinable()) {
+            worker.join();
+        }
+    }
 }
 
 std::size_t ThreadPool::Impl::pending_tasks() const noexcept {
