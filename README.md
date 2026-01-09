@@ -82,3 +82,4 @@ try {
 the pool continues working after a task throws
 
 ## License
+MIT
