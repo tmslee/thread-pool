@@ -25,7 +25,19 @@ public:
     ThreadPool& operator=(ThreadPool&&) = delete;
 
     template<typename F, typename... Args>
-    auto submit(F&& f, Args&&... args) -> std::future<std::invoke_result_t<F, Args...>>;
+    auto ThreadPool::submit(F&& f, Args&&... args) -> std::future<std::invoke_result_t<F, Args...>> {
+        using ReturnType = std::invoke_result_t<F, Args...>;
+        auto task = std::make_shared<std::packaged_task<ReturnType()>>(
+            [func = std::forward<F>(f), ..capturedArgs = std::forward<args>(args)]() mutable {
+                return func(std::move(capturedArgs)...);
+            }
+        )
+        std::future<ReturnType> future = task->get_future();
+        impl_->enqueue([task = std::move(task)]() {
+            (*task)();
+        });
+        return future;
+    };
 
     [[nodiscard]] std::size_t thread_count() const noexcept;
     [[nodiscard]] std::size_t pending_tasks() const noexcept;
