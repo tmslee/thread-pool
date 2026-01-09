@@ -45,6 +45,10 @@ ThreadPool::Impl::~Impl() {
     shutdown();
 }
 
+void ThreadPool::enqueue(std::function<void()> task) {
+    impl_->enqueue(std::move(task));
+}
+
 void ThreadPool::Impl::worker_loop() {
     while(true) {
         std::function<void()> task;
@@ -66,7 +70,7 @@ void ThreadPool::Impl::worker_loop() {
 void ThreadPool::Impl::enqueue(std::function<void()> task) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        if(stop_load(std::memory_order_relaxed)){
+        if(stop_.load(std::memory_order_relaxed)){
             throw std::runtime_error("Cannot enqueue on stopped thread pool");
         }
         tasks_.push(std::move(task));
@@ -75,7 +79,19 @@ void ThreadPool::Impl::enqueue(std::function<void()> task) {
 }
 
 void ThreadPool::Impl::shutdown() {
-    //phase 6
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if(stop_.load(std::memory_order_relaxed)) {
+            return;
+        }
+        stop_.store(true, std::memory_order_relaxed);
+    }
+    cv_.notify_all();
+    for(auto& worker : workers_){
+        if(worker.joinable()) {
+            worker.join();
+        }
+    }
 }
 
 std::size_t ThreadPool::Impl::pending_tasks() const noexcept {
