@@ -11,8 +11,8 @@ add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 # sanitizer support
 option(ENABLE_SANITIZERS "Enable ASan and UBSan" OFF)
 if(ENABLE_SANITIZERS)
-    add_compile_options(thread_pool PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
-    add_link_options(thread_pool PRIVATE -fsanitize=address,undefined)
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
 endif()
 
 
@@ -37,7 +37,6 @@ FetchContent_MakeAvailable(googletest)
 
 # tests
 enable_testing()
-find_package(GTest REQUIRED)
 
 add_executable(thread_pool_test tests/thread_pool_test.cpp)
 target_link_libraries(thread_pool_test PRIVATE thread_pool GTest::gtest_main)
