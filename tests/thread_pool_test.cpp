@@ -25,6 +25,8 @@ TEST(ThreadPool, TaskWithArgs) {
 
 TEST(ThreadPool, VoidTask) {
     tp::ThreadPool pool(2);
+    // we want atomic here because this is technically a race
+    // though it will work regardless, santiizers will flag as race.
     std::atomic<bool> executed{false};
     auto future = pool.submit([&executed] {
         executed.store(true);
@@ -53,9 +55,18 @@ TEST(ThreadPool, TasksRunConcurrently) {
 
     for(int i=0; i<8; ++i){
         futures.push_back(pool.submit([&] {
+            // note: increment & decrement on atomic ints are equivalent to fetch_add -> it is atomic by default
             int current = ++concurrent_count;
+            int prev_max = max_concurrent.load();         
+            /*
+                this loop will exit when prev_max >= current (in which case our current counter is irrelevant)
+                OR the compare_exchange_weak has succeeded (we have successfully updated the max_concurrent with current)
+                this means that we will ONLY update the max_concurrent with current if our prev_max == max_concurrent and the increment will only happen once.
 
-            int prev_max = max_concurrent.load();
+                note: on compare exchange_weak failure, we update prev_max with max_concurrent
+                    - meaning we dont need to do prev_max.load() inside the loop
+                note: we do compare_exchange_weak since this is in a loop & we're retrying anyway - spurious failure is ok
+            */
             while(prev_max < current &&
                 !max_concurrent.compare_exchange_weak(prev_max, current)) {}
             std::this_thread::sleep_for(std::chrono::milliseconds(50));

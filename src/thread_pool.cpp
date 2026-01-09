@@ -27,10 +27,11 @@ private:
     std::vector<std::thread> workers_;
     std::queue<std::function<void()>> tasks_;
 
-    mutable std::mutex mutex_;
+    mutable std::mutex mutex_; //need mutable so we can lock in const methods
     std::condition_variable cv_;
 
-    std::atomic<bool> stop_{false};
+    std::atomic<bool> stop_{false}; 
+    //technically dont need this to be atomic bc of locks but better for clarity
 };
 
 ThreadPool::Impl::Impl(std::size_t num_threads) {
@@ -56,6 +57,8 @@ void ThreadPool::Impl::worker_loop() {
         std::function<void()> task;
         {
             std::unique_lock<std::mutex> lock(mutex_);
+            //predicate must include both exit condition OR work condition
+            //in our case this is stop_ is true OR tasks is NOT empty
             cv_.wait(lock, [this] {
                 return stop_.load(std::memory_order_relaxed) || !tasks_.empty();
             });
