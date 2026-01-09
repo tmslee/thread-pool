@@ -33,8 +33,10 @@ private:
     std::atomic<bool> stop_{false};
 };
 
-// implementation of Impl methods (placeholder for now)
 ThreadPool::Impl::Impl(std::size_t num_threads) {
+    if(num_threads == 0) {
+        throw std::invalid_argument("thread pool requires at least one thread");
+    }
     workers_.reserve(num_threads);
     for(std::size_t i=0; i<num_threads; ++i) {
         workers_.emplace_back([this] {worker_loop();});
